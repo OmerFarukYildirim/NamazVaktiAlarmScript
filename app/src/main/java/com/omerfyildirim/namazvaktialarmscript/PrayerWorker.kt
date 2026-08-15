@@ -68,7 +68,7 @@ class PrayerWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             "Yatsı" to timings.Isha
         )
 
-        Log.d("PrayerWorker", "Starting to set alarms using AlarmClock.ACTION_SET_ALARM")
+        Log.d("PrayerWorker", "Alarmlar güncelleniyor...")
 
         for ((name, time) in prayerTimes) {
             val (hour, minute) = time.split(":").map { it.toInt() }
@@ -77,20 +77,17 @@ class PrayerWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             calendar.set(Calendar.HOUR_OF_DAY, hour)
             calendar.set(Calendar.MINUTE, minute)
             calendar.set(Calendar.SECOND, 0)
-            calendar.add(Calendar.MINUTE, -5) // 5 minutes before
-
-            if (calendar.timeInMillis <= System.currentTimeMillis()) {
-                Log.d("PrayerWorker", "Skipping $name ($time) because it's in the past")
-                continue
-            }
+            calendar.add(Calendar.MINUTE, -5) // Vaktinden 5 dk önce
 
             val alarmHour = calendar.get(Calendar.HOUR_OF_DAY)
             val alarmMinute = calendar.get(Calendar.MINUTE)
+            val label = "Namaz Vakti ($name)"
 
-            Log.d("PrayerWorker", "Setting system alarm for $name at $alarmHour:$alarmMinute")
-            
-            val intent = Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
-                putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "$name Namazı")
+            // NOT: EXTRA_DAYS kaldırıldı. Script her gece çalıştığı için 
+            // zaten her gün o günün taze vakitlerini kurmuş olacak.
+            // Bu sayede 7 tane kopya oluşması engellenmiş olur.
+            val setIntent = Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+                putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, label)
                 putExtra(android.provider.AlarmClock.EXTRA_HOUR, alarmHour)
                 putExtra(android.provider.AlarmClock.EXTRA_MINUTES, alarmMinute)
                 putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
@@ -98,11 +95,12 @@ class PrayerWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             }
             
             try {
-                context.startActivity(intent)
-                // Small delay to prevent system from being overwhelmed by multiple intents
-                Thread.sleep(500) 
+                context.startActivity(setIntent)
+                Log.d("PrayerWorker", "Alarm kuruldu: $label saat $alarmHour:$alarmMinute")
+                // Sistem arayüzünün (saat uygulaması) nefes alması için kısa bir süre bekle
+                Thread.sleep(800) 
             } catch (e: Exception) {
-                Log.e("PrayerWorker", "Failed to start AlarmClock intent for $name", e)
+                Log.e("PrayerWorker", "Alarm kurulamadı: $name", e)
             }
         }
     }

@@ -20,6 +20,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -118,9 +119,21 @@ class MainActivity : ComponentActivity() {
             immediateWork
         )
 
-        // 2. Periodic work to run every 24 hours
+        // 2. Gece yarısı (00:05) için gecikme hesapla
+        val currentTime = Calendar.getInstance()
+        val dueDate = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 5)
+            set(Calendar.SECOND, 0)
+            if (before(currentTime)) {
+                add(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
+        val initialDelay = dueDate.timeInMillis - currentTime.timeInMillis
+
         val workRequest = PeriodicWorkRequestBuilder<PrayerWorker>(24, TimeUnit.HOURS)
             .setConstraints(constraints)
+            .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
